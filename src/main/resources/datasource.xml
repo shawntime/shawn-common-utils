@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:tx="http://www.springframework.org/schema/tx"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+       http://www.springframework.org/schema/beans/spring-beans-4.1.xsd
+       http://www.springframework.org/schema/tx
+       http://www.springframework.org/schema/tx/spring-tx-4.1.xsd">
+
+       <bean id="abstractDataSource" abstract="true" class="com.alibaba.druid.pool.DruidDataSource" init-method="init"
+             destroy-method="close">
+              <property name="driverClassName" value="com.microsoft.sqlserver.jdbc.SQLServerDriver"/>
+              <!-- 基本属性 url、user、password -->
+              <property name="url" value="${shawnTime.jdbc.url}"/>
+              <!-- 配置初始化大小、最小、最大 -->
+              <property name="initialSize" value="${shawnTime.jdbc.initPoolSize}"/>
+              <property name="minIdle" value="10"/>
+              <property name="maxActive" value="${shawnTime.jdbc.maxPoolSize}"/>
+              <!-- 配置获取连接等待超时的时间 -->
+              <property name="maxWait" value="60000"/>
+              <!-- 配置间隔多久才进行一次检测，检测需要关闭的空闲连接，单位是毫秒 -->
+              <property name="timeBetweenEvictionRunsMillis" value="60000"/>
+              <!-- 配置一个连接在池中最小生存的时间，单位是毫秒 -->
+              <property name="minEvictableIdleTimeMillis" value="300000"/>
+              <property name="validationQuery" value="SELECT 'x'"/>
+              <property name="testWhileIdle" value="true"/>
+              <property name="testOnBorrow" value="false"/>
+              <property name="testOnReturn" value="false"/>
+              <!-- 打开PSCache，并且指定每个连接上PSCache的大小 -->
+              <property name="poolPreparedStatements" value="true"/>
+              <property name="maxPoolPreparedStatementPerConnectionSize" value="20"/>
+              <property name="filters" value="config"/>
+              <property name="connectionProperties" value="config.decrypt=true" />
+       </bean>
+
+       <bean id="shawnTimeDataSourceRead"  parent="abstractDataSource">
+              <property name="username" value="${shawnTime.jdbc.user.read}"/>
+              <property name="password" value="${shawnTime.jdbc.password.read}"/>
+       </bean>
+
+       <bean id="shawnTimeDataSourceWrite"  parent="abstractDataSource">
+              <property name="username" value="${shawnTime.jdbc.user}"/>
+              <property name="password" value="${shawnTime.jdbc.password}"/>
+       </bean>
+
+       <bean id="shawnTimeDataSource"  class="com.shawntime.utils.rwdb.DynamicDataSource">
+              <property name="writeDataSource"  ref="shawnTimeDataSourceWrite"></property>
+              <property name="readDataSource" ref="shawnTimeDataSourceRead"></property>
+       </bean>
+
+       <tx:annotation-driven transaction-manager="shawnTimeTransactionManager"/>
+
+       <bean id="shawnTimeTransactionManager" class="com.shawntime.utils.rwdb.DynamicDataSourceTransactionManager">
+              <property name="dataSource" ref="shawnTimeDataSource"/>
+       </bean>
+
+       <!-- 针对myBatis的配置项 -->
+       <!-- 配置sqlSessionFactory -->
+       <bean id="shawnTimeSqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+              <!-- 实例化sqlSessionFactory时需要使用上述配置好的数据源以及SQL映射文件 -->
+              <property name="dataSource" ref="shawnTimeDataSource"/>
+              <!-- 自动扫描me/gacl/mapping/目录下的所有SQL映射的xml文件, 省掉Configuration.xml里的手工配置
+              value="classpath:me/gacl/mapping/*.xml"指的是classpath(类路径)下me.gacl.mapping包中的所有xml文件
+              UserMapper.xml位于me.gacl.mapping包下，这样UserMapper.xml就可以被自动扫描
+               -->
+              <!--<property name="mapperLocations" value="classpath:mapper/autosuper/*.xml"/>-->
+              <property name="plugins">
+                     <array>
+                            <bean class="com.shawntime.utils.rwdb.DynamicPlugin" />
+                     </array>
+              </property>
+       </bean>
+
+       <!-- 配置扫描器 -->
+       <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+              <!-- 扫描包以及它的子包下的所有映射接口类 -->
+              <property name="basePackage" value="com.shawntime.utils"/>
+              <property name="sqlSessionFactoryBeanName" value="shawnTimeSqlSessionFactory"/>
+       </bean>
+</beans>
