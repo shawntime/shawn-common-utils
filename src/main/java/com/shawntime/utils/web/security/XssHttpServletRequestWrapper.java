@@ -1,12 +1,11 @@
 package com.shawntime.utils.web.security;
 
-import cn.com.autohome.tuan.framework.web.Constants;
-import org.springframework.web.util.HtmlUtils;
-
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletRequestWrapper;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
+
+import com.shawntime.utils.web.Constants;
 
 
 /**

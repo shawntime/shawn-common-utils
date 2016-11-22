@@ -5,7 +5,7 @@ package com.shawntime.utils.web.security;
  * @author YinZhaohua
  */
 
-import cn.com.autohome.tuan.framework.utils.URLHelper;
+import com.shawntime.utils.helper.URLHelper;
 import org.apache.commons.lang.StringUtils;
 
 import javax.servlet.*;
