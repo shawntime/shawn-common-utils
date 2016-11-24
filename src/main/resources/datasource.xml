@@ -43,14 +43,14 @@
               <property name="password" value="${shawnTime.jdbc.password}"/>
        </bean>
 
-       <bean id="shawnTimeDataSource"  class="com.shawntime.utils.rwdb.DynamicDataSource">
+       <bean id="shawnTimeDataSource"  class="com.shawntime.common.rwdb.DynamicDataSource">
               <property name="writeDataSource"  ref="shawnTimeDataSourceWrite"></property>
               <property name="readDataSource" ref="shawnTimeDataSourceRead"></property>
        </bean>
 
        <tx:annotation-driven transaction-manager="shawnTimeTransactionManager"/>
 
-       <bean id="shawnTimeTransactionManager" class="com.shawntime.utils.rwdb.DynamicDataSourceTransactionManager">
+       <bean id="shawnTimeTransactionManager" class="com.shawntime.common.rwdb.DynamicDataSourceTransactionManager">
               <property name="dataSource" ref="shawnTimeDataSource"/>
        </bean>
 
@@ -66,7 +66,7 @@
               <!--<property name="mapperLocations" value="classpath:mapper/autosuper/*.xml"/>-->
               <property name="plugins">
                      <array>
-                            <bean class="com.shawntime.utils.rwdb.DynamicPlugin" />
+                            <bean class="com.shawntime.common.rwdb.DynamicPlugin" />
                      </array>
               </property>
        </bean>
@@ -74,7 +74,7 @@
        <!-- 配置扫描器 -->
        <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
               <!-- 扫描包以及它的子包下的所有映射接口类 -->
-              <property name="basePackage" value="com.shawntime.utils"/>
+              <property name="basePackage" value="com.shawntime.common"/>
               <property name="sqlSessionFactoryBeanName" value="shawnTimeSqlSessionFactory"/>
        </bean>
 </beans>

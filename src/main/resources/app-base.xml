@@ -11,14 +11,14 @@
        http://www.springframework.org/schema/cache
        http://www.springframework.org/schema/cache/spring-cache-4.1.xsd http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop.xsd">
 
-    <context:component-scan base-package="com.shawntime.utils"/>
+    <context:component-scan base-package="com.shawntime.common"/>
 
     <context:annotation-config/>
 
     <aop:aspectj-autoproxy proxy-target-class="true"/>
 
     <!--aop性能拦截-->
-    <bean id="elapseInterceptor" class="com.shawntime.utils.web.springmvc.interceptors.ElapseInterceptor" scope="singleton">
+    <bean id="elapseInterceptor" class="com.shawntime.common.web.springmvc.interceptors.ElapseInterceptor" scope="singleton">
         <!--isOpen表示是否打开性能日志记录-->
         <property name="isOpen" value="true"/>
     </bean>
@@ -34,7 +34,7 @@
         <property name="targetBeanName" value="caseInsensitiveRequestFilter"/>
     </bean>
     <bean id="caseInsensitiveRequestFilter"
-          class="com.shawntime.utils.web.filters.CaseInsensitiveRequestFilter">
+          class="com.shawntime.common.web.filters.CaseInsensitiveRequestFilter">
     </bean>
 
     <!--自定义扩展 log4j layout 输出-->
@@ -42,7 +42,7 @@
         <property name="targetBeanName" value="log4jMDCFilter"/>
     </bean>
     <bean id="log4jMDCFilter"
-          class="com.shawntime.utils.web.filters.Log4jMDCFilter">
+          class="com.shawntime.common.web.filters.Log4jMDCFilter">
     </bean>
 
     <!-- redis连接池的配置 -->
