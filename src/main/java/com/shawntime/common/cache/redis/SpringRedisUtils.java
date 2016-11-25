@@ -4,7 +4,7 @@ import com.shawntime.common.common.ApplicationContextUtil;
 import com.shawntime.common.utils.JsonUtils;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
-public class SpringRedisHelper {
+public class SpringRedisUtils {
 
     private static final StringRedisTemplate redisTemplate = (StringRedisTemplate) ApplicationContextUtil.getBean("redisTemplate");
 
@@ -31,5 +31,9 @@ public class SpringRedisHelper {
 
     public static void delete(final String key) {
         redisTemplate.delete(key);
+    }
+
+    public static long increment(final String key, long expireTime) {
+        return redisTemplate.opsForValue().increment(key, expireTime);
     }
 }

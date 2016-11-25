@@ -4,7 +4,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import com.shawntime.common.cache.redis.SpringRedisHelper;
+import com.shawntime.common.cache.redis.SpringRedisUtils;
 import org.apache.log4j.Logger;
 
 /**
@@ -31,17 +31,17 @@ public class SyncCacheLock<T> {
 		T obj = null;
 		readLock.lock();
 		try {
-			obj = SpringRedisHelper.get(key, clazz);
+			obj = SpringRedisUtils.get(key, clazz);
 			if(obj == null) {
 				logger.debug("SyncCacheLock : read request " + key + " is null, wait query...");
 				readLock.unlock();
 				writeLock.lock();
 				try {
-					obj = SpringRedisHelper.get(key, clazz);
+					obj = SpringRedisUtils.get(key, clazz);
 					if(obj == null) {
 						task.run();//强制执行执行写缓存任务
 						logger.debug(Thread.currentThread().getName() + " read request " + key + " end...");
-						obj = SpringRedisHelper.get(key, clazz);
+						obj = SpringRedisUtils.get(key, clazz);
 						if(obj == null) {
 							logger.error("SyncCacheLock : " + key + " synch_cache_lock error, data is null...");
 						}

@@ -1,6 +1,6 @@
 package com.shawntime.common.ratelimit;
 
-import com.autohome.api.dealer.util.redis.SpringRedisUtil;
+import com.shawntime.common.cache.redis.SpringRedisUtils;
 
 /**
  * Created by IDEA
@@ -22,7 +22,7 @@ public final class RateLimitUtils {
      * @return true:超过，false：没有超过
      */
     public static boolean isExceedRate(String key, long expireTime, int limit) {
-        long num = SpringRedisUtil.increment(key, expireTime);
+        long num = SpringRedisUtils.increment(key, expireTime);
         return num >= limit;
 
     }

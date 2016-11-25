@@ -3,7 +3,7 @@ package com.shawntime.common.lock;
 import java.lang.reflect.Method;
 
 import com.google.common.base.Joiner;
-import com.shawntime.common.cache.redis.SpringRedisHelper;
+import com.shawntime.common.cache.redis.SpringRedisUtils;
 import com.shawntime.common.common.spelkey.KeySpELAdviceSupport;
 import org.apache.commons.lang3.StringUtils;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -84,17 +84,17 @@ public class RedisLockInterceptor extends KeySpELAdviceSupport {
     private boolean lock(String key, long expire) {
 
         long value = System.currentTimeMillis() + expire * 1000;
-        boolean status = SpringRedisHelper.setNX(key, value);
+        boolean status = SpringRedisUtils.setNX(key, value);
 
         if(status) {
             return true;
         }
 
-        long oldExpireTime = SpringRedisHelper.get(key, Long.class);
+        long oldExpireTime = SpringRedisUtils.get(key, Long.class);
         if(oldExpireTime < System.currentTimeMillis()) {
             //超时
             long newExpireTime = System.currentTimeMillis() + expire * 1000;
-            long currentExpireTime = SpringRedisHelper.getSet(key, newExpireTime, Long.class);
+            long currentExpireTime = SpringRedisUtils.getSet(key, newExpireTime, Long.class);
             if(currentExpireTime == oldExpireTime) {
                 return true;
             }
@@ -104,7 +104,7 @@ public class RedisLockInterceptor extends KeySpELAdviceSupport {
     }
 
     private void unLock(String key) {
-        SpringRedisHelper.delete(key);
+        SpringRedisUtils.delete(key);
     }
 
 }
