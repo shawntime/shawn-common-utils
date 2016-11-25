@@ -4,7 +4,7 @@ import java.lang.reflect.Method;
 
 import com.google.common.base.Joiner;
 import com.shawntime.common.cache.redis.SpringRedisHelper;
-import com.shawntime.common.lock.spelkey.KeySpELAdviceSupport;
+import com.shawntime.common.common.spelkey.KeySpELAdviceSupport;
 import org.apache.commons.lang3.StringUtils;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;

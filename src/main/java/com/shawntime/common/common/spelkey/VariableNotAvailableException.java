@@ -1,4 +1,4 @@
-package com.shawntime.common.lock.spelkey;
+package com.shawntime.common.common.spelkey;
 
 import org.springframework.expression.EvaluationException;
 
