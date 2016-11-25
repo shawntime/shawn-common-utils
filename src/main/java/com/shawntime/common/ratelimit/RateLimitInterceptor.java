@@ -33,8 +33,6 @@ public class RateLimitInterceptor extends KeySpELAdviceSupport {
 
         MethodSignature methodSignature = (MethodSignature) point.getSignature();
         Method targetMethod = AopUtils.getMostSpecificMethod(methodSignature.getMethod(), point.getTarget().getClass());
-        String targetName = point.getTarget().getClass().getName();
-        String methodName = point.getSignature().getName();
         Object target = point.getTarget();
         Object[] arguments = point.getArgs();
 
