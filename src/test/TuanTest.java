@@ -18,7 +18,7 @@ import com.mashape.unirest.http.exceptions.UnirestException;
  */
 public class TuanTest {
 
-    private static final String DOMAIN = "http://f57.super.api.autohome.com.cn";
+    private static final String DOMAIN = "http://localhost:8080";
 
     private List<String> getUrlList() throws IOException {
         InputStream inputStream = this.getClass().getClassLoader().getResourceAsStream("url.txt");
