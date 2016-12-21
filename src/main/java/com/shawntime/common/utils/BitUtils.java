@@ -38,4 +38,23 @@ public final class BitUtils {
         }
         return value;
     }
+
+    public static void main(String[] args) {
+        int value = 0;
+//        value = addStatus(value, 0, true);
+        value = addStatus(value, 1, true);
+        value = addStatus(value, 4, true);
+        value = addStatus(value, 8, true);
+        value = addStatus(value, 12, true);
+
+//        System.out.println(getStatus(value, 0));
+//        System.out.println(getStatus(value, 1));
+//        System.out.println(getStatus(value, 4));
+//        System.out.println(getStatus(value, 8));
+//        System.out.println(getStatus(value, 12));
+
+        for (byte i = 32; i > 0; i--) {
+            System.out.printf("%d ", getStatus(value, i) ? 1 : 0);
+        }
+    }
 }
