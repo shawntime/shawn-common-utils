@@ -1,6 +1,7 @@
 package com.shawntime.common.lock;
 
 import java.lang.reflect.Method;
+import java.util.concurrent.TimeUnit;
 
 import com.google.common.base.Joiner;
 import com.shawntime.common.cache.redis.SpringRedisUtils;
@@ -25,10 +26,11 @@ import org.springframework.stereotype.Component;
 public class RedisLockInterceptor extends KeySpELAdviceSupport {
 
     @Pointcut("@annotation(com.shawntime.common.lock.RedisLockable)")
-    public void pointcut(){}
+    public void pointcut() {
+    }
 
     @Around("pointcut()")
-    public Object doAround(ProceedingJoinPoint point) throws Throwable{
+    public Object doAround(ProceedingJoinPoint point) throws Throwable {
 
         MethodSignature methodSignature = (MethodSignature) point.getSignature();
         Method targetMethod = AopUtils.getMostSpecificMethod(methodSignature.getMethod(), point.getTarget().getClass());
@@ -40,14 +42,19 @@ public class RedisLockInterceptor extends KeySpELAdviceSupport {
         RedisLockable redisLock = targetMethod.getAnnotation(RedisLockable.class);
         long expire = redisLock.expiration();
         String redisKey = getLockKey(redisLock, targetMethod, targetName, methodName, target, arguments);
-        boolean isLock = lock(redisKey, expire);
-        if(isLock) {
+        boolean isLock;
+        if (redisLock.isWaiting()) {
+            isLock = waitingLock(redisKey, expire, redisLock.retryCount());
+        } else {
+            isLock = noWaitingLock(redisKey, expire);
+        }
+        if (isLock) {
             long startTime = System.currentTimeMillis();
             try {
                 return point.proceed();
             } finally {
                 long parseTime = System.currentTimeMillis() - startTime;
-                if(parseTime <= expire * 1000) {
+                if (parseTime <= expire * 1000) {
                     unLock(redisKey);
                 }
             }
@@ -56,17 +63,18 @@ public class RedisLockInterceptor extends KeySpELAdviceSupport {
         }
     }
 
-    private String getLockKey(RedisLockable redisLock, Method targetMethod, String targetName, String methodName, Object target, Object[] arguments) {
+    private String getLockKey(RedisLockable redisLock, Method targetMethod, String targetName, String methodName,
+                              Object target, Object[] arguments) {
 
         String[] keys = redisLock.key();
         String prefix = redisLock.prefix();
         StringBuilder sb = new StringBuilder("lock.");
-        if(StringUtils.isEmpty(prefix)) {
+        if (StringUtils.isEmpty(prefix)) {
             sb.append(targetName).append(".").append(methodName);
         } else {
             sb.append(prefix);
         }
-        if(keys != null) {
+        if (keys != null) {
             String keyStr = Joiner.on("+ '.' +").skipNulls().join(keys);
             SpELOperationContext context = getOperationContext(targetMethod, arguments, target, target.getClass());
             Object key = generateKey(keyStr, context);
@@ -77,28 +85,52 @@ public class RedisLockInterceptor extends KeySpELAdviceSupport {
 
     /**
      * 加锁
-     * @param key redis key
+     *
+     * @param key    redis key
      * @param expire 过期时间，单位秒
      * @return true:加锁成功，false，加锁失败
      */
-    private boolean lock(String key, long expire) {
+    private boolean noWaitingLock(String key, long expire) {
 
         long value = System.currentTimeMillis() + expire * 1000;
         boolean status = SpringRedisUtils.setNX(key, value);
 
-        if(status) {
+        if (status) {
             return true;
         }
 
         long oldExpireTime = SpringRedisUtils.get(key, Long.class);
-        if(oldExpireTime < System.currentTimeMillis()) {
+        if (oldExpireTime < System.currentTimeMillis()) {
             //超时
             long newExpireTime = System.currentTimeMillis() + expire * 1000;
             long currentExpireTime = SpringRedisUtils.getSet(key, newExpireTime, Long.class);
-            if(currentExpireTime == oldExpireTime) {
+            if (currentExpireTime == oldExpireTime) {
                 return true;
             }
 
+        }
+        return false;
+    }
+
+    /**
+     * 等待锁
+     *
+     * @param key    redis key
+     * @param expire 过期时间，单位秒
+     * @return true:加锁成功，false，加锁失败
+     */
+    private boolean waitingLock(String key, long expire, int retryCount) {
+        int count = 0;
+        while (retryCount == -1 || count <= retryCount) {
+            if (noWaitingLock(key, expire)) {
+                return true;
+            }
+            try {
+                TimeUnit.MILLISECONDS.sleep(10);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            count++;
         }
         return false;
     }
