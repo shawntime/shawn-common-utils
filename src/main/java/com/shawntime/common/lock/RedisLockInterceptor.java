@@ -26,10 +26,11 @@ import org.springframework.stereotype.Component;
 public class RedisLockInterceptor extends KeySpELAdviceSupport {
 
     @Pointcut("@annotation(com.shawntime.common.lock.RedisLockable)")
-    public void pointcut(){}
+    public void pointcut() {
+    }
 
     @Around("pointcut()")
-    public Object doAround(ProceedingJoinPoint point) throws Throwable{
+    public Object doAround(ProceedingJoinPoint point) throws Throwable {
 
         MethodSignature methodSignature = (MethodSignature) point.getSignature();
         Method targetMethod = AopUtils.getMostSpecificMethod(methodSignature.getMethod(), point.getTarget().getClass());
@@ -53,7 +54,7 @@ public class RedisLockInterceptor extends KeySpELAdviceSupport {
                 return point.proceed();
             } finally {
                 long parseTime = System.currentTimeMillis() - startTime;
-                if(parseTime <= expire * 1000) {
+                if (parseTime <= expire * 1000) {
                     unLock(redisKey);
                 }
             }
@@ -62,17 +63,18 @@ public class RedisLockInterceptor extends KeySpELAdviceSupport {
         }
     }
 
-    private String getLockKey(RedisLockable redisLock, Method targetMethod, String targetName, String methodName, Object target, Object[] arguments) {
+    private String getLockKey(RedisLockable redisLock, Method targetMethod, String targetName, String methodName,
+                              Object target, Object[] arguments) {
 
         String[] keys = redisLock.key();
         String prefix = redisLock.prefix();
         StringBuilder sb = new StringBuilder("lock.");
-        if(StringUtils.isEmpty(prefix)) {
+        if (StringUtils.isEmpty(prefix)) {
             sb.append(targetName).append(".").append(methodName);
         } else {
             sb.append(prefix);
         }
-        if(keys != null) {
+        if (keys != null) {
             String keyStr = Joiner.on("+ '.' +").skipNulls().join(keys);
             SpELOperationContext context = getOperationContext(targetMethod, arguments, target, target.getClass());
             Object key = generateKey(keyStr, context);
@@ -83,7 +85,8 @@ public class RedisLockInterceptor extends KeySpELAdviceSupport {
 
     /**
      * 加锁
-     * @param key redis key
+     *
+     * @param key    redis key
      * @param expire 过期时间，单位秒
      * @return true:加锁成功，false，加锁失败
      */
@@ -92,16 +95,16 @@ public class RedisLockInterceptor extends KeySpELAdviceSupport {
         long value = System.currentTimeMillis() + expire * 1000;
         boolean status = SpringRedisUtils.setNX(key, value);
 
-        if(status) {
+        if (status) {
             return true;
         }
 
         long oldExpireTime = SpringRedisUtils.get(key, Long.class);
-        if(oldExpireTime < System.currentTimeMillis()) {
+        if (oldExpireTime < System.currentTimeMillis()) {
             //超时
             long newExpireTime = System.currentTimeMillis() + expire * 1000;
             long currentExpireTime = SpringRedisUtils.getSet(key, newExpireTime, Long.class);
-            if(currentExpireTime == oldExpireTime) {
+            if (currentExpireTime == oldExpireTime) {
                 return true;
             }
 
