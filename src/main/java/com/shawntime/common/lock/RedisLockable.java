@@ -21,4 +21,10 @@ public @interface RedisLockable {
     String[] key() default "";
 
     long expiration() default 120;
+
+    boolean isWaiting() default false; //锁是否等待，默认为不等待
+
+    int retryCount() default -1; // 锁等待重试次数，-1未不限制
+
+    int retryWaitTime() default 10; //重试等待时间，默认10毫秒，单位毫秒
 }

@@ -1,6 +1,7 @@
 package com.shawntime.common.lock;
 
 import java.lang.reflect.Method;
+import java.util.concurrent.TimeUnit;
 
 import com.google.common.base.Joiner;
 import com.shawntime.common.cache.redis.SpringRedisUtils;
@@ -40,7 +41,12 @@ public class RedisLockInterceptor extends KeySpELAdviceSupport {
         RedisLockable redisLock = targetMethod.getAnnotation(RedisLockable.class);
         long expire = redisLock.expiration();
         String redisKey = getLockKey(redisLock, targetMethod, targetName, methodName, target, arguments);
-        boolean isLock = lock(redisKey, expire);
+        boolean isLock;
+        if (redisLock.isWaiting()) {
+            isLock = waitingLock(redisKey, expire, redisLock.retryCount(), redisLock.retryWaitTime());
+        } else {
+            isLock = noWaitingLock(redisKey, expire);
+        }
         if(isLock) {
             long startTime = System.currentTimeMillis();
             try {
@@ -52,7 +58,7 @@ public class RedisLockInterceptor extends KeySpELAdviceSupport {
                 }
             }
         } else {
-            throw new RuntimeException("您的操作太频繁，请稍后再试");
+            throw new RedisLockException("您的操作太频繁，请稍后再试");
         }
     }
 
@@ -81,7 +87,7 @@ public class RedisLockInterceptor extends KeySpELAdviceSupport {
      * @param expire 过期时间，单位秒
      * @return true:加锁成功，false，加锁失败
      */
-    private boolean lock(String key, long expire) {
+    private boolean noWaitingLock(String key, long expire) {
 
         long value = System.currentTimeMillis() + expire * 1000;
         boolean status = SpringRedisUtils.setNX(key, value);
@@ -99,6 +105,29 @@ public class RedisLockInterceptor extends KeySpELAdviceSupport {
                 return true;
             }
 
+        }
+        return false;
+    }
+
+    /**
+     * 等待锁
+     *
+     * @param key    redis key
+     * @param expire 过期时间，单位秒
+     * @return true:加锁成功，false，加锁失败
+     */
+    private boolean waitingLock(String key, long expire, int retryCount, int retryWaitTime) {
+        int count = 0;
+        while (retryCount == -1 || count <= retryCount) {
+            if (noWaitingLock(key ,expire)) {
+                return true;
+            }
+            try {
+                TimeUnit.MILLISECONDS.sleep(retryWaitTime);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            count++;
         }
         return false;
     }
