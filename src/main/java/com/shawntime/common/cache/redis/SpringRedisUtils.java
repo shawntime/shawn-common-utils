@@ -2,6 +2,7 @@ package com.shawntime.common.cache.redis;
 
 import com.shawntime.common.common.ApplicationContextUtil;
 import com.shawntime.common.utils.JsonUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 public class SpringRedisUtils {
@@ -12,6 +13,7 @@ public class SpringRedisUtils {
         final String jsonValue = JsonUtils.serialize(value);
         redisTemplate.opsForValue().set(key, jsonValue);
     }
+
 
     public static <T> T get(final String key, Class<T> elementType) {
         String jsonValue = redisTemplate.opsForValue().get(key);
@@ -26,6 +28,9 @@ public class SpringRedisUtils {
     public static <T> T getSet(final String key, Object value, Class<T> clazz) {
         final String jsonValue = JsonUtils.serialize(value);
         String oldValue = redisTemplate.opsForValue().getAndSet(key, jsonValue);
+        if (StringUtils.isEmpty(oldValue)) {
+            return null;
+        }
         return JsonUtils.deSerialize(oldValue, clazz);
     }
 

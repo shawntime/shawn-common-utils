@@ -103,11 +103,13 @@ public class RedisLockInterceptor extends KeySpELAdviceSupport {
         if (oldExpireTime < System.currentTimeMillis()) {
             //超时
             long newExpireTime = System.currentTimeMillis() + expire * 1000;
-            long currentExpireTime = SpringRedisUtils.getSet(key, newExpireTime, Long.class);
-            if (currentExpireTime == oldExpireTime) {
+            Long currentExpireTime = SpringRedisUtils.getSet(key, newExpireTime, Long.class);
+            if (currentExpireTime == null) {
                 return true;
             }
-
+            if (currentExpireTime.longValue() == oldExpireTime) {
+                return true;
+            }
         }
         return false;
     }
