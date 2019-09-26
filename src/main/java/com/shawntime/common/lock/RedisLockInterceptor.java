@@ -4,8 +4,7 @@ import java.lang.reflect.Method;
 import java.util.concurrent.TimeUnit;
 
 import com.google.common.base.Joiner;
-import com.shawntime.common.cache.redis.SpringRedisUtils;
-import com.shawntime.common.common.spelkey.KeySpELAdviceSupport;
+import com.shawntime.common.utils.RedisLockUtil;
 import org.apache.commons.lang3.StringUtils;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
@@ -13,17 +12,23 @@ import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Pointcut;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.aop.support.AopUtils;
+import org.springframework.core.LocalVariableTableParameterNameDiscoverer;
+import org.springframework.expression.EvaluationContext;
+import org.springframework.expression.ExpressionParser;
+import org.springframework.expression.spel.standard.SpelExpressionParser;
+import org.springframework.expression.spel.support.StandardEvaluationContext;
 import org.springframework.stereotype.Component;
 
 /**
- * Created by IDEA
- * User: mashaohua
- * Date: 2016-09-28 18:08
- * Desc:
+ * @author mashaohua
  */
 @Aspect
 @Component
-public class RedisLockInterceptor extends KeySpELAdviceSupport {
+public class RedisLockInterceptor {
+
+    private static final LocalVariableTableParameterNameDiscoverer DISCOVERER = new LocalVariableTableParameterNameDiscoverer();
+
+    private static final ExpressionParser PARSER = new SpelExpressionParser();
 
     @Pointcut("@annotation(com.shawntime.common.lock.RedisLockable)")
     public void pointcut() {
@@ -36,36 +41,30 @@ public class RedisLockInterceptor extends KeySpELAdviceSupport {
         Method targetMethod = AopUtils.getMostSpecificMethod(methodSignature.getMethod(), point.getTarget().getClass());
         String targetName = point.getTarget().getClass().getName();
         String methodName = point.getSignature().getName();
-        Object target = point.getTarget();
         Object[] arguments = point.getArgs();
 
         RedisLockable redisLock = targetMethod.getAnnotation(RedisLockable.class);
         long expire = redisLock.expiration();
-        String redisKey = getLockKey(redisLock, targetMethod, targetName, methodName, target, arguments);
-        boolean isLock;
+        String redisKey = getLockKey(redisLock, targetMethod, targetName, methodName, arguments);
+        String uuid;
         if (redisLock.isWaiting()) {
-            isLock = waitingLock(redisKey, expire, redisLock.retryCount(), redisLock.retryWaitTime());
+            uuid = waitingLock(redisKey, expire, redisLock.retryCount(), redisLock.retryWaitingTime());
         } else {
-            isLock = noWaitingLock(redisKey, expire);
+            uuid = noWaitingLock(redisKey, expire);
         }
-        if(isLock) {
-            long startTime = System.currentTimeMillis();
+        if (StringUtils.isNotEmpty(uuid)) {
             try {
                 return point.proceed();
             } finally {
-                long parseTime = System.currentTimeMillis() - startTime;
-                if (parseTime <= expire * 1000) {
-                    unLock(redisKey);
-                }
+                RedisLockUtil.unLock(redisKey, uuid);
             }
         } else {
-            throw new RedisLockException("您的操作太频繁，请稍后再试");
+            throw new RedisLockException(redisKey);
         }
     }
 
-    private String getLockKey(RedisLockable redisLock, Method targetMethod, String targetName, String methodName,
-                              Object target, Object[] arguments) {
-
+    private String getLockKey(RedisLockable redisLock, Method targetMethod,
+                              String targetName, String methodName, Object[] arguments) {
         String[] keys = redisLock.key();
         String prefix = redisLock.prefix();
         StringBuilder sb = new StringBuilder("lock.");
@@ -76,69 +75,36 @@ public class RedisLockInterceptor extends KeySpELAdviceSupport {
         }
         if (keys != null) {
             String keyStr = Joiner.on("+ '.' +").skipNulls().join(keys);
-            SpELOperationContext context = getOperationContext(targetMethod, arguments, target, target.getClass());
-            Object key = generateKey(keyStr, context);
+            EvaluationContext context = new StandardEvaluationContext(targetMethod);
+            String[] parameterNames = DISCOVERER.getParameterNames(targetMethod);
+            for (int i = 0; i < parameterNames.length; i++) {
+                context.setVariable(parameterNames[i], arguments[i]);
+            }
+            Object key = PARSER.parseExpression(keyStr).getValue(context);
             sb.append("#").append(key);
         }
         return sb.toString();
     }
 
-    /**
-     * 加锁
-     *
-     * @param key    redis key
-     * @param expire 过期时间，单位秒
-     * @return true:加锁成功，false，加锁失败
-     */
-    private boolean noWaitingLock(String key, long expire) {
-
-        long value = System.currentTimeMillis() + expire * 1000;
-        boolean status = SpringRedisUtils.setNX(key, value);
-
-        if (status) {
-            return true;
-        }
-
-        long oldExpireTime = SpringRedisUtils.get(key, Long.class);
-        if (oldExpireTime < System.currentTimeMillis()) {
-            //超时
-            long newExpireTime = System.currentTimeMillis() + expire * 1000;
-            Long currentExpireTime = SpringRedisUtils.getSet(key, newExpireTime, Long.class);
-            if (currentExpireTime == null) {
-                return true;
-            }
-            if (currentExpireTime.longValue() == oldExpireTime) {
-                return true;
-            }
-        }
-        return false;
+    private String noWaitingLock(String key, long expire) {
+        return RedisLockUtil.lock(key, expire);
     }
 
-    /**
-     * 等待锁
-     *
-     * @param key    redis key
-     * @param expire 过期时间，单位秒
-     * @return true:加锁成功，false，加锁失败
-     */
-    private boolean waitingLock(String key, long expire, int retryCount, int retryWaitTime) {
+    private String waitingLock(String key, long expire, int retryCount, int retryWaitingTime)
+            throws InterruptedException {
         int count = 0;
         while (retryCount == -1 || count <= retryCount) {
-            if (noWaitingLock(key ,expire)) {
-                return true;
+            String uuid = noWaitingLock(key, expire);
+            if (!StringUtils.isEmpty(uuid)) {
+                return uuid;
             }
             try {
-                TimeUnit.MILLISECONDS.sleep(retryWaitTime);
+                TimeUnit.MILLISECONDS.sleep(retryWaitingTime);
             } catch (InterruptedException e) {
-                e.printStackTrace();
+                throw e;
             }
             count++;
         }
-        return false;
+        return null;
     }
-
-    private void unLock(String key) {
-        SpringRedisUtils.delete(key);
-    }
-
 }

@@ -6,11 +6,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * RUNTIME
- * 定义注解
- * 编译器将把注释记录在类文件中，在运行时 VM 将保留注释，因此可以反射性地读取。
- * @author shma1664
- *
+ * @author mashaohua
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
@@ -20,11 +16,11 @@ public @interface RedisLockable {
 
     String[] key() default "";
 
-    long expiration() default 120;
+    long expiration() default 60;
 
     boolean isWaiting() default false; //锁是否等待，默认为不等待
 
     int retryCount() default -1; // 锁等待重试次数，-1未不限制
 
-    int retryWaitTime() default 10; //重试等待时间，默认10毫秒，单位毫秒
+    int retryWaitingTime() default 10; // 锁等待重试间隔时间，默认10毫秒
 }
